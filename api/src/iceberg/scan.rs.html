@@ -1588,6 +1588,26 @@
 <a href="#1588" id="1588">1588</a>
 <a href="#1589" id="1589">1589</a>
 <a href="#1590" id="1590">1590</a>
+<a href="#1591" id="1591">1591</a>
+<a href="#1592" id="1592">1592</a>
+<a href="#1593" id="1593">1593</a>
+<a href="#1594" id="1594">1594</a>
+<a href="#1595" id="1595">1595</a>
+<a href="#1596" id="1596">1596</a>
+<a href="#1597" id="1597">1597</a>
+<a href="#1598" id="1598">1598</a>
+<a href="#1599" id="1599">1599</a>
+<a href="#1600" id="1600">1600</a>
+<a href="#1601" id="1601">1601</a>
+<a href="#1602" id="1602">1602</a>
+<a href="#1603" id="1603">1603</a>
+<a href="#1604" id="1604">1604</a>
+<a href="#1605" id="1605">1605</a>
+<a href="#1606" id="1606">1606</a>
+<a href="#1607" id="1607">1607</a>
+<a href="#1608" id="1608">1608</a>
+<a href="#1609" id="1609">1609</a>
+<a href="#1610" id="1610">1610</a>
 </pre></div><pre class="rust"><code><span class="comment">// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
@@ -1622,11 +1642,12 @@
 <span class="kw">use </span><span class="kw">crate</span>::expr::visitors::inclusive_projection::InclusiveProjection;
 <span class="kw">use </span><span class="kw">crate</span>::expr::visitors::manifest_evaluator::ManifestEvaluator;
 <span class="kw">use </span><span class="kw">crate</span>::expr::{Bind, BoundPredicate, Predicate};
+<span class="kw">use </span><span class="kw">crate</span>::io::object_cache::ObjectCache;
 <span class="kw">use </span><span class="kw">crate</span>::io::FileIO;
 <span class="kw">use </span><span class="kw">crate</span>::runtime::spawn;
 <span class="kw">use </span><span class="kw">crate</span>::spec::{
-    DataContentType, ManifestContentType, ManifestEntryRef, ManifestFile, ManifestList, Schema,
-    SchemaRef, SnapshotRef, TableMetadataRef,
+    DataContentType, DataFileFormat, ManifestContentType, ManifestEntryRef, ManifestFile,
+    ManifestList, Schema, SchemaRef, SnapshotRef, TableMetadataRef,
 };
 <span class="kw">use </span><span class="kw">crate</span>::table::Table;
 <span class="kw">use </span><span class="kw">crate</span>::utils::available_parallelism;
@@ -1649,6 +1670,7 @@
     concurrency_limit_data_files: usize,
     concurrency_limit_manifest_entries: usize,
     concurrency_limit_manifest_files: usize,
+    row_group_filtering_enabled: bool,
 }
 
 <span class="kw">impl</span>&lt;<span class="lifetime">'a</span>&gt; TableScanBuilder&lt;<span class="lifetime">'a</span>&gt; {
@@ -1665,6 +1687,7 @@
             concurrency_limit_data_files: num_cpus,
             concurrency_limit_manifest_entries: num_cpus,
             concurrency_limit_manifest_files: num_cpus,
+            row_group_filtering_enabled: <span class="bool-val">true</span>,
         }
     }
 
@@ -1731,9 +1754,16 @@
         <span class="self">self
     </span>}
 
-    <span class="doccomment">/// Sets the manifest file concurrency limit for this scan
-    </span><span class="kw">pub fn </span>with_manifest_file_concurrency_limit(<span class="kw-2">mut </span><span class="self">self</span>, limit: usize) -&gt; <span class="self">Self </span>{
-        <span class="self">self</span>.concurrency_limit_manifest_files = limit;
+    <span class="doccomment">/// Determines whether to enable row group filtering.
+    /// When enabled, if a read is performed with a filter predicate,
+    /// then the metadata for each row group in the parquet file is
+    /// evaluated against the filter predicate and row groups
+    /// that cant contain matching rows will be skipped entirely.
+    ///
+    /// Defaults to enabled, as it generally improves performance or
+    /// keeps it the same, with performance degradation unlikely.
+    </span><span class="kw">pub fn </span>with_row_group_filtering_enabled(<span class="kw-2">mut </span><span class="self">self</span>, row_group_filtering_enabled: bool) -&gt; <span class="self">Self </span>{
+        <span class="self">self</span>.row_group_filtering_enabled = row_group_filtering_enabled;
         <span class="self">self
     </span>}
 
@@ -1832,7 +1862,7 @@
             case_sensitive: <span class="self">self</span>.case_sensitive,
             predicate: <span class="self">self</span>.filter.map(Arc::new),
             snapshot_bound_predicate: snapshot_bound_predicate.map(Arc::new),
-            file_io: <span class="self">self</span>.table.file_io().clone(),
+            object_cache: <span class="self">self</span>.table.object_cache(),
             field_ids: Arc::new(field_ids),
             partition_filter_cache: Arc::new(PartitionFilterCache::new()),
             manifest_evaluator_cache: Arc::new(ManifestEvaluatorCache::new()),
@@ -1847,6 +1877,7 @@
             concurrency_limit_data_files: <span class="self">self</span>.concurrency_limit_data_files,
             concurrency_limit_manifest_entries: <span class="self">self</span>.concurrency_limit_manifest_entries,
             concurrency_limit_manifest_files: <span class="self">self</span>.concurrency_limit_manifest_files,
+            row_group_filtering_enabled: <span class="self">self</span>.row_group_filtering_enabled,
         })
     }
 }
@@ -1869,6 +1900,8 @@
     <span class="doccomment">/// The maximum number of [`ManifestEntry`]s that will
     /// be processed in parallel
     </span>concurrency_limit_data_files: usize,
+
+    row_group_filtering_enabled: bool,
 }
 
 <span class="doccomment">/// PlanContext wraps a [`SnapshotRef`] alongside all the other
@@ -1882,7 +1915,7 @@
     case_sensitive: bool,
     predicate: <span class="prelude-ty">Option</span>&lt;Arc&lt;Predicate&gt;&gt;,
     snapshot_bound_predicate: <span class="prelude-ty">Option</span>&lt;Arc&lt;BoundPredicate&gt;&gt;,
-    file_io: FileIO,
+    object_cache: Arc&lt;ObjectCache&gt;,
     field_ids: Arc&lt;Vec&lt;i32&gt;&gt;,
 
     partition_filter_cache: Arc&lt;PartitionFilterCache&gt;,
@@ -1935,7 +1968,7 @@
                 .try_for_each_concurrent(
                     concurrency_limit_manifest_entries,
                     |(manifest_entry_context, tx)| <span class="kw">async move </span>{
-                        <span class="kw">crate</span>::runtime::spawn(<span class="kw">async move </span>{
+                        spawn(<span class="kw">async move </span>{
                             <span class="self">Self</span>::process_manifest_entry(manifest_entry_context, tx).<span class="kw">await
                         </span>})
                         .<span class="kw">await
@@ -1954,7 +1987,8 @@
     <span class="doccomment">/// Returns an [`ArrowRecordBatchStream`].
     </span><span class="kw">pub async fn </span>to_arrow(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ArrowRecordBatchStream&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>arrow_reader_builder = ArrowReaderBuilder::new(<span class="self">self</span>.file_io.clone())
-            .with_data_file_concurrency_limit(<span class="self">self</span>.concurrency_limit_data_files);
+            .with_data_file_concurrency_limit(<span class="self">self</span>.concurrency_limit_data_files)
+            .with_row_group_filtering_enabled(<span class="self">self</span>.row_group_filtering_enabled);
 
         <span class="kw">if let </span><span class="prelude-val">Some</span>(batch_size) = <span class="self">self</span>.batch_size {
             arrow_reader_builder = arrow_reader_builder.with_batch_size(batch_size);
@@ -2044,8 +2078,8 @@
     sender: Sender&lt;ManifestEntryContext&gt;,
 
     field_ids: Arc&lt;Vec&lt;i32&gt;&gt;,
-    file_io: FileIO,
     bound_predicates: <span class="prelude-ty">Option</span>&lt;Arc&lt;BoundPredicates&gt;&gt;,
+    object_cache: Arc&lt;ObjectCache&gt;,
     snapshot_schema: SchemaRef,
     expression_evaluator_cache: Arc&lt;ExpressionEvaluatorCache&gt;,
 }
@@ -2067,24 +2101,22 @@
     /// streaming its constituent [`ManifestEntries`] to the channel provided in the context
     </span><span class="kw">async fn </span>fetch_manifest_and_stream_manifest_entries(<span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>ManifestFileContext {
-            file_io,
+            object_cache,
             manifest_file,
             bound_predicates,
             snapshot_schema,
             field_ids,
-            expression_evaluator_cache,
             <span class="kw-2">mut </span>sender,
+            expression_evaluator_cache,
             ..
         } = <span class="self">self</span>;
 
-        <span class="kw">let </span>file_io_cloned = file_io.clone();
-        <span class="kw">let </span>manifest = manifest_file.load_manifest(<span class="kw-2">&amp;</span>file_io_cloned).<span class="kw">await</span><span class="question-mark">?</span>;
+        <span class="kw">let </span>manifest = object_cache.get_manifest(<span class="kw-2">&amp;</span>manifest_file).<span class="kw">await</span><span class="question-mark">?</span>;
 
-        <span class="kw">let </span>(entries, <span class="kw">_</span>) = manifest.consume();
-
-        <span class="kw">for </span>manifest_entry <span class="kw">in </span>entries.into_iter() {
+        <span class="kw">for </span>manifest_entry <span class="kw">in </span>manifest.entries() {
             <span class="kw">let </span>manifest_entry_context = ManifestEntryContext {
-                manifest_entry,
+                <span class="comment">// TODO: refactor to avoid clone
+                </span>manifest_entry: manifest_entry.clone(),
                 expression_evaluator_cache: expression_evaluator_cache.clone(),
                 field_ids: field_ids.clone(),
                 partition_spec_id: manifest_file.partition_spec_id,
@@ -2107,22 +2139,28 @@
     /// created from it
     </span><span class="kw">fn </span>into_file_scan_task(<span class="self">self</span>) -&gt; FileScanTask {
         FileScanTask {
-            data_file_path: <span class="self">self</span>.manifest_entry.file_path().to_string(),
             start: <span class="number">0</span>,
             length: <span class="self">self</span>.manifest_entry.file_size_in_bytes(),
+            record_count: <span class="prelude-val">Some</span>(<span class="self">self</span>.manifest_entry.record_count()),
+
+            data_file_path: <span class="self">self</span>.manifest_entry.file_path().to_string(),
+            data_file_content: <span class="self">self</span>.manifest_entry.content_type(),
+            data_file_format: <span class="self">self</span>.manifest_entry.file_format(),
+
+            schema: <span class="self">self</span>.snapshot_schema,
             project_field_ids: <span class="self">self</span>.field_ids.to_vec(),
             predicate: <span class="self">self
                 </span>.bound_predicates
                 .map(|x| x.as_ref().snapshot_bound_predicate.clone()),
-            schema: <span class="self">self</span>.snapshot_schema,
         }
     }
 }
 
 <span class="kw">impl </span>PlanContext {
-    <span class="kw">async fn </span>get_manifest_list(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;ManifestList&gt; {
-        <span class="self">self</span>.snapshot
-            .load_manifest_list(<span class="kw-2">&amp;</span><span class="self">self</span>.file_io, <span class="kw-2">&amp;</span><span class="self">self</span>.table_metadata)
+    <span class="kw">async fn </span>get_manifest_list(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;Arc&lt;ManifestList&gt;&gt; {
+        <span class="self">self</span>.object_cache
+            .as_ref()
+            .get_manifest_list(<span class="kw-2">&amp;</span><span class="self">self</span>.snapshot, <span class="kw-2">&amp;</span><span class="self">self</span>.table_metadata)
             .<span class="kw">await
     </span>}
 
@@ -2149,19 +2187,19 @@
 
     <span class="kw">fn </span>build_manifest_file_contexts(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        manifest_list: ManifestList,
+        manifest_list: Arc&lt;ManifestList&gt;,
         sender: Sender&lt;ManifestEntryContext&gt;,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;Box&lt;<span class="kw">impl </span>Iterator&lt;Item = <span class="prelude-ty">Result</span>&lt;ManifestFileContext&gt;&gt;&gt;&gt; {
         <span class="kw">let </span>filtered_entries = manifest_list
-            .consume_entries()
-            .into_iter()
+            .entries()
+            .iter()
             .filter(|manifest_file| manifest_file.content == ManifestContentType::Data);
 
         <span class="comment">// TODO: Ideally we could ditch this intermediate Vec as we return an iterator.
         </span><span class="kw">let </span><span class="kw-2">mut </span>filtered_mfcs = <span class="macro">vec!</span>[];
         <span class="kw">if </span><span class="self">self</span>.predicate.is_some() {
             <span class="kw">for </span>manifest_file <span class="kw">in </span>filtered_entries {
-                <span class="kw">let </span>partition_bound_predicate = <span class="self">self</span>.get_partition_filter(<span class="kw-2">&amp;</span>manifest_file)<span class="question-mark">?</span>;
+                <span class="kw">let </span>partition_bound_predicate = <span class="self">self</span>.get_partition_filter(manifest_file)<span class="question-mark">?</span>;
 
                 <span class="comment">// evaluate the ManifestFile against the partition filter. Skip
                 // if it cannot contain any matching rows
@@ -2171,7 +2209,7 @@
                         manifest_file.partition_spec_id,
                         partition_bound_predicate.clone(),
                     )
-                    .eval(<span class="kw-2">&amp;</span>manifest_file)<span class="question-mark">?
+                    .eval(manifest_file)<span class="question-mark">?
                 </span>{
                     <span class="kw">let </span>mfc = <span class="self">self</span>.create_manifest_file_context(
                         manifest_file,
@@ -2193,7 +2231,7 @@
 
     <span class="kw">fn </span>create_manifest_file_context(
         <span class="kw-2">&amp;</span><span class="self">self</span>,
-        manifest_file: ManifestFile,
+        manifest_file: <span class="kw-2">&amp;</span>ManifestFile,
         partition_filter: <span class="prelude-ty">Option</span>&lt;Arc&lt;BoundPredicate&gt;&gt;,
         sender: Sender&lt;ManifestEntryContext&gt;,
     ) -&gt; ManifestFileContext {
@@ -2210,10 +2248,10 @@
             </span>};
 
         ManifestFileContext {
-            manifest_file,
+            manifest_file: manifest_file.clone(),
             bound_predicates,
             sender,
-            file_io: <span class="self">self</span>.file_io.clone(),
+            object_cache: <span class="self">self</span>.object_cache.clone(),
             snapshot_schema: <span class="self">self</span>.snapshot_schema.clone(),
             field_ids: <span class="self">self</span>.field_ids.clone(),
             expression_evaluator_cache: <span class="self">self</span>.expression_evaluator_cache.clone(),
@@ -2431,35 +2469,30 @@
 <span class="doccomment">/// A task to scan part of file.
 </span><span class="attr">#[derive(Debug, Clone, Serialize, Deserialize)]
 </span><span class="kw">pub struct </span>FileScanTask {
-    data_file_path: String,
-    start: u64,
-    length: u64,
-    project_field_ids: Vec&lt;i32&gt;,
-    <span class="attr">#[serde(skip_serializing_if = <span class="string">"Option::is_none"</span>)]
-    </span>predicate: <span class="prelude-ty">Option</span>&lt;BoundPredicate&gt;,
-    schema: SchemaRef,
-}
+    <span class="doccomment">/// The start offset of the file to scan.
+    </span><span class="kw">pub </span>start: u64,
+    <span class="doccomment">/// The length of the file to scan.
+    </span><span class="kw">pub </span>length: u64,
+    <span class="doccomment">/// The number of records in the file to scan.
+    ///
+    /// This is an optional field, and only available if we are
+    /// reading the entire data file.
+    </span><span class="kw">pub </span>record_count: <span class="prelude-ty">Option</span>&lt;u64&gt;,
 
-<span class="kw">impl </span>FileScanTask {
-    <span class="doccomment">/// Returns the data file path of this file scan task.
-    </span><span class="kw">pub fn </span>data_file_path(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>str {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.data_file_path
-    }
+    <span class="doccomment">/// The data file path corresponding to the task.
+    </span><span class="kw">pub </span>data_file_path: String,
+    <span class="doccomment">/// The content type of the file to scan.
+    </span><span class="kw">pub </span>data_file_content: DataContentType,
+    <span class="doccomment">/// The format of the file to scan.
+    </span><span class="kw">pub </span>data_file_format: DataFileFormat,
 
-    <span class="doccomment">/// Returns the project field id of this file scan task.
-    </span><span class="kw">pub fn </span>project_field_ids(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>[i32] {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.project_field_ids
-    }
-
-    <span class="doccomment">/// Returns the predicate of this file scan task.
-    </span><span class="kw">pub fn </span>predicate(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Option</span>&lt;<span class="kw-2">&amp;</span>BoundPredicate&gt; {
-        <span class="self">self</span>.predicate.as_ref()
-    }
-
-    <span class="doccomment">/// Returns the schema id of this file scan task.
-    </span><span class="kw">pub fn </span>schema(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw-2">&amp;</span>Schema {
-        <span class="kw-2">&amp;</span><span class="self">self</span>.schema
-    }
+    <span class="doccomment">/// The schema of the file to scan.
+    </span><span class="kw">pub </span>schema: SchemaRef,
+    <span class="doccomment">/// The field ids to project.
+    </span><span class="kw">pub </span>project_field_ids: Vec&lt;i32&gt;,
+    <span class="doccomment">/// The predicate to filter.
+    </span><span class="attr">#[serde(skip_serializing_if = <span class="string">"Option::is_none"</span>)]
+    </span><span class="kw">pub </span>predicate: <span class="prelude-ty">Option</span>&lt;BoundPredicate&gt;,
 }
 
 <span class="attr">#[cfg(test)]
@@ -2528,9 +2561,10 @@
             <span class="kw">let </span>table = Table::builder()
                 .metadata(table_metadata)
                 .identifier(TableIdent::from_strs([<span class="string">"db"</span>, <span class="string">"table1"</span>]).unwrap())
-                .file_io(file_io)
+                .file_io(file_io.clone())
                 .metadata_location(table_metadata1_location.as_os_str().to_str().unwrap())
-                .build();
+                .build()
+                .unwrap();
 
             <span class="self">Self </span>{
                 table_location: table_location.to_str().unwrap().to_string(),
@@ -2795,17 +2829,17 @@
 
         <span class="macro">assert_eq!</span>(tasks.len(), <span class="number">2</span>);
 
-        tasks.sort_by_key(|t| t.data_file_path().to_string());
+        tasks.sort_by_key(|t| t.data_file_path.to_string());
 
         <span class="comment">// Check first task is added data file
         </span><span class="macro">assert_eq!</span>(
-            tasks[<span class="number">0</span>].data_file_path(),
+            tasks[<span class="number">0</span>].data_file_path,
             <span class="macro">format!</span>(<span class="string">"{}/1.parquet"</span>, <span class="kw-2">&amp;</span>fixture.table_location)
         );
 
         <span class="comment">// Check second task is existing data file
         </span><span class="macro">assert_eq!</span>(
-            tasks[<span class="number">1</span>].data_file_path(),
+            tasks[<span class="number">1</span>].data_file_path,
             <span class="macro">format!</span>(<span class="string">"{}/3.parquet"</span>, <span class="kw-2">&amp;</span>fixture.table_location)
         );
     }
@@ -3158,22 +3192,28 @@
         );
         <span class="kw">let </span>task = FileScanTask {
             data_file_path: <span class="string">"data_file_path"</span>.to_string(),
+            data_file_content: DataContentType::Data,
             start: <span class="number">0</span>,
             length: <span class="number">100</span>,
             project_field_ids: <span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>],
             predicate: <span class="prelude-val">None</span>,
             schema: schema.clone(),
+            record_count: <span class="prelude-val">Some</span>(<span class="number">100</span>),
+            data_file_format: DataFileFormat::Parquet,
         };
         test_fn(task);
 
         <span class="comment">// with predicate
         </span><span class="kw">let </span>task = FileScanTask {
             data_file_path: <span class="string">"data_file_path"</span>.to_string(),
+            data_file_content: DataContentType::Data,
             start: <span class="number">0</span>,
             length: <span class="number">100</span>,
             project_field_ids: <span class="macro">vec!</span>[<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>],
             predicate: <span class="prelude-val">Some</span>(BoundPredicate::AlwaysTrue),
             schema,
+            record_count: <span class="prelude-val">None</span>,
+            data_file_format: DataFileFormat::Avro,
         };
         test_fn(task);
     }

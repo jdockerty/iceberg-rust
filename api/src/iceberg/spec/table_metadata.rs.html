@@ -1977,7 +1977,7 @@
 
     <span class="doccomment">/// Append snapshot to table
     </span><span class="kw">pub fn </span>append_snapshot(<span class="kw-2">&amp;mut </span><span class="self">self</span>, snapshot: Snapshot) {
-        <span class="self">self</span>.last_updated_ms = snapshot.timestamp().timestamp_millis();
+        <span class="self">self</span>.last_updated_ms = snapshot.timestamp_ms();
         <span class="self">self</span>.last_sequence_number = snapshot.sequence_number();
 
         <span class="self">self</span>.refs
@@ -2575,7 +2575,7 @@
     }
 }
 
-<span class="attr">#[derive(Debug, Serialize_repr, Deserialize_repr, PartialEq, Eq, Clone, Copy)]
+<span class="attr">#[derive(Debug, Serialize_repr, Deserialize_repr, PartialEq, Eq, Clone, Copy, Hash)]
 #[repr(u8)]
 </span><span class="doccomment">/// Iceberg format version
 </span><span class="kw">pub enum </span>FormatVersion {
@@ -3012,7 +3012,7 @@
                 name: <span class="string">"x"</span>.to_string(),
                 transform: Transform::Identity,
                 source_id: <span class="number">1</span>,
-                partition_id: <span class="prelude-val">Some</span>(<span class="number">1000</span>),
+                field_id: <span class="prelude-val">Some</span>(<span class="number">1000</span>),
             })
             .unwrap()
             .build()
@@ -3135,7 +3135,7 @@
                 name: <span class="string">"x"</span>.to_string(),
                 transform: Transform::Identity,
                 source_id: <span class="number">1</span>,
-                partition_id: <span class="prelude-val">Some</span>(<span class="number">1000</span>),
+                field_id: <span class="prelude-val">Some</span>(<span class="number">1000</span>),
             })
             .unwrap()
             .build()
@@ -3215,7 +3215,7 @@
                 name: <span class="string">"x"</span>.to_string(),
                 transform: Transform::Identity,
                 source_id: <span class="number">1</span>,
-                partition_id: <span class="prelude-val">Some</span>(<span class="number">1000</span>),
+                field_id: <span class="prelude-val">Some</span>(<span class="number">1000</span>),
             })
             .unwrap()
             .build()
