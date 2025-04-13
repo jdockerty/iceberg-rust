@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/iceberg/src/expr/visitors/expression_evaluator.rs`."><title>expression_evaluator.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-46f98efaafac5295.ttf.woff2,FiraSans-Regular-018c141bf0843ffd.woff2,FiraSans-Medium-8f9a781e4970d388.woff2,SourceCodePro-Regular-562dcc5011b6de7d.ttf.woff2,SourceCodePro-Semibold-d899c5a5c4aeb14a.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-76eba96aa4d2e634.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-dd39b87e5fcfba68.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="iceberg" data-themes="" data-resource-suffix="" data-rustdoc-version="1.81.0-nightly (a70b2ae57 2024-06-09)" data-channel="nightly" data-search-js="search-0fe7219eb170c82e.js" data-settings-js="settings-4313503d2e1961c2.js" ><script src="../../../../static.files/storage-118b08c4c78b968e.js"></script><script defer src="../../../../static.files/src-script-e66d777a5a92e9b2.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-20a3ad099b048cf2.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-df360f571f6edeae.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-422f7d1d52889060.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-2c020d218678b618.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers"><a href="#1" id="1">1</a>
+<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="generator" content="rustdoc"><meta name="description" content="Source of the Rust file `crates/iceberg/src/expr/visitors/expression_evaluator.rs`."><title>expression_evaluator.rs - source</title><script>if(window.location.protocol!=="file:")document.head.insertAdjacentHTML("beforeend","SourceSerif4-Regular-6b053e98.ttf.woff2,FiraSans-Regular-0fe48ade.woff2,FiraSans-Medium-e1aa3f0a.woff2,SourceCodePro-Regular-8badfe75.ttf.woff2,SourceCodePro-Semibold-aa29a496.ttf.woff2".split(",").map(f=>`<link rel="preload" as="font" type="font/woff2" crossorigin href="../../../../static.files/${f}">`).join(""))</script><link rel="stylesheet" href="../../../../static.files/normalize-9960930a.css"><link rel="stylesheet" href="../../../../static.files/rustdoc-42caa33d.css"><meta name="rustdoc-vars" data-root-path="../../../../" data-static-root-path="../../../../static.files/" data-current-crate="iceberg" data-themes="" data-resource-suffix="" data-rustdoc-version="1.84.0-nightly (b19329a37 2024-11-21)" data-channel="nightly" data-search-js="search-92e6798f.js" data-settings-js="settings-0f613d39.js" ><script src="../../../../static.files/storage-59e33391.js"></script><script defer src="../../../../static.files/src-script-56102188.js"></script><script defer src="../../../../src-files.js"></script><script defer src="../../../../static.files/main-5f194d8c.js"></script><noscript><link rel="stylesheet" href="../../../../static.files/noscript-893ab5e7.css"></noscript><link rel="alternate icon" type="image/png" href="../../../../static.files/favicon-32x32-6580c154.png"><link rel="icon" type="image/svg+xml" href="../../../../static.files/favicon-044be391.svg"></head><body class="rustdoc src"><!--[if lte IE 11]><div class="warning">This old browser is unsupported and will most likely display funky things.</div><![endif]--><nav class="sidebar"><div class="src-sidebar-title"><h2>Files</h2></div></nav><div class="sidebar-resizer"></div><main><rustdoc-search></rustdoc-search><section id="main-content" class="content"><div class="main-heading"><h1><div class="sub-heading">iceberg/expr/visitors/</div>expression_evaluator.rs</h1><rustdoc-toolbar></rustdoc-toolbar></div><div class="example-wrap"><div data-nosnippet><pre class="src-line-numbers">
+<a href="#1" id="1">1</a>
 <a href="#2" id="2">2</a>
 <a href="#3" id="3">3</a>
 <a href="#4" id="4">4</a>
@@ -792,7 +793,10 @@
 <a href="#792" id="792">792</a>
 <a href="#793" id="793">793</a>
 <a href="#794" id="794">794</a>
-</pre></div><pre class="rust"><code><span class="comment">// Licensed to the Apache Software Foundation (ASF) under one
+<a href="#795" id="795">795</a>
+<a href="#796" id="796">796</a>
+<a href="#797" id="797">797</a>
+<a href="#798" id="798">798</a></pre></div><pre class="rust"><code><span class="comment">// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
@@ -1052,13 +1056,13 @@
         UnaryExpression,
     };
     <span class="kw">use </span><span class="kw">crate</span>::spec::{
-        BoundPartitionSpec, BoundPartitionSpecRef, DataContentType, DataFile, DataFileFormat,
-        Datum, Literal, NestedField, PrimitiveType, Schema, Struct, Transform, Type,
+        DataContentType, DataFile, DataFileFormat, Datum, Literal, NestedField, PartitionSpec,
+        PartitionSpecRef, PrimitiveType, Schema, SchemaRef, Struct, Transform, Type,
         UnboundPartitionField,
     };
     <span class="kw">use </span><span class="kw">crate</span>::Result;
 
-    <span class="kw">fn </span>create_partition_spec(r#type: PrimitiveType) -&gt; <span class="prelude-ty">Result</span>&lt;BoundPartitionSpecRef&gt; {
+    <span class="kw">fn </span>create_partition_spec(r#type: PrimitiveType) -&gt; <span class="prelude-ty">Result</span>&lt;(PartitionSpecRef, SchemaRef)&gt; {
         <span class="kw">let </span>schema = Schema::builder()
             .with_fields(<span class="macro">vec!</span>[Arc::new(NestedField::optional(
                 <span class="number">1</span>,
@@ -1067,27 +1071,30 @@
             ))])
             .build()<span class="question-mark">?</span>;
 
-        <span class="kw">let </span>spec = BoundPartitionSpec::builder(schema.clone())
+        <span class="kw">let </span>spec = PartitionSpec::builder(schema.clone())
             .with_spec_id(<span class="number">1</span>)
-            .add_unbound_fields(<span class="macro">vec!</span>[UnboundPartitionField::builder()
-                .source_id(<span class="number">1</span>)
-                .name(<span class="string">"a"</span>.to_string())
-                .field_id(<span class="number">1</span>)
-                .transform(Transform::Identity)
-                .build()])
+            .add_unbound_field(
+                UnboundPartitionField::builder()
+                    .source_id(<span class="number">1</span>)
+                    .name(<span class="string">"a"</span>.to_string())
+                    .field_id(<span class="number">1</span>)
+                    .transform(Transform::Identity)
+                    .build(),
+            )
             .unwrap()
             .build()
             .unwrap();
 
-        <span class="prelude-val">Ok</span>(Arc::new(spec))
+        <span class="prelude-val">Ok</span>((Arc::new(spec), schema.into()))
     }
 
     <span class="kw">fn </span>create_partition_filter(
-        partition_spec: BoundPartitionSpecRef,
+        partition_spec: PartitionSpecRef,
+        schema: <span class="kw-2">&amp;</span>Schema,
         predicate: <span class="kw-2">&amp;</span>BoundPredicate,
         case_sensitive: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;BoundPredicate&gt; {
-        <span class="kw">let </span>partition_type = partition_spec.partition_type();
+        <span class="kw">let </span>partition_type = partition_spec.partition_type(schema).unwrap();
         <span class="kw">let </span>partition_fields = partition_type.fields().to_owned();
 
         <span class="kw">let </span>partition_schema = Schema::builder()
@@ -1095,8 +1102,7 @@
             .with_fields(partition_fields)
             .build()<span class="question-mark">?</span>;
 
-        <span class="kw">let </span><span class="kw-2">mut </span>inclusive_projection =
-            InclusiveProjection::new((<span class="kw-2">*</span>partition_spec).clone().into_schemaless().into());
+        <span class="kw">let </span><span class="kw-2">mut </span>inclusive_projection = InclusiveProjection::new((<span class="kw-2">*</span>partition_spec).clone().into());
 
         <span class="kw">let </span>partition_filter = inclusive_projection
             .project(predicate)<span class="question-mark">?
@@ -1107,11 +1113,13 @@
     }
 
     <span class="kw">fn </span>create_expression_evaluator(
-        partition_spec: BoundPartitionSpecRef,
+        partition_spec: PartitionSpecRef,
+        schema: <span class="kw-2">&amp;</span>Schema,
         predicate: <span class="kw-2">&amp;</span>BoundPredicate,
         case_sensitive: bool,
     ) -&gt; <span class="prelude-ty">Result</span>&lt;ExpressionEvaluator&gt; {
-        <span class="kw">let </span>partition_filter = create_partition_filter(partition_spec, predicate, case_sensitive)<span class="question-mark">?</span>;
+        <span class="kw">let </span>partition_filter =
+            create_partition_filter(partition_spec, schema, predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="prelude-val">Ok</span>(ExpressionEvaluator::new(partition_filter))
     }
@@ -1132,10 +1140,11 @@
             nan_value_counts: HashMap::new(),
             lower_bounds: HashMap::new(),
             upper_bounds: HashMap::new(),
-            key_metadata: <span class="macro">vec!</span>[],
+            key_metadata: <span class="prelude-val">None</span>,
             split_offsets: <span class="macro">vec!</span>[],
             equality_ids: <span class="macro">vec!</span>[],
             sort_order_id: <span class="prelude-val">None</span>,
+            partition_spec_id: <span class="number">0</span>,
         }
     }
 
@@ -1155,17 +1164,18 @@
             nan_value_counts: HashMap::new(),
             lower_bounds: HashMap::new(),
             upper_bounds: HashMap::new(),
-            key_metadata: <span class="macro">vec!</span>[],
+            key_metadata: <span class="prelude-val">None</span>,
             split_offsets: <span class="macro">vec!</span>[],
             equality_ids: <span class="macro">vec!</span>[],
             sort_order_id: <span class="prelude-val">None</span>,
+            partition_spec_id: <span class="number">0</span>,
         }
     }
 
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_or() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Binary(BinaryExpression::new(
             PredicateOperator::LessThan,
@@ -1177,10 +1187,10 @@
             Reference::new(<span class="string">"a"</span>),
             Datum::float(<span class="number">0.4</span>),
         )))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1194,7 +1204,7 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_and() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Binary(BinaryExpression::new(
             PredicateOperator::LessThan,
@@ -1206,10 +1216,10 @@
             Reference::new(<span class="string">"a"</span>),
             Datum::float(<span class="number">0.4</span>),
         )))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1223,17 +1233,17 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_not_in() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Set(SetExpression::new(
             PredicateOperator::NotIn,
             Reference::new(<span class="string">"a"</span>),
             FnvHashSet::from_iter([Datum::float(<span class="number">0.9</span>), Datum::float(<span class="number">1.2</span>), Datum::float(<span class="number">2.4</span>)]),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1247,17 +1257,17 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_in() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Set(SetExpression::new(
             PredicateOperator::In,
             Reference::new(<span class="string">"a"</span>),
             FnvHashSet::from_iter([Datum::float(<span class="number">1.0</span>), Datum::float(<span class="number">1.2</span>), Datum::float(<span class="number">2.4</span>)]),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1271,17 +1281,17 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_not_starts_with() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::String)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::String)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Binary(BinaryExpression::new(
             PredicateOperator::NotStartsWith,
             Reference::new(<span class="string">"a"</span>),
             Datum::string(<span class="string">"not"</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_string();
 
@@ -1295,17 +1305,17 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_starts_with() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::String)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::String)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Binary(BinaryExpression::new(
             PredicateOperator::StartsWith,
             Reference::new(<span class="string">"a"</span>),
             Datum::string(<span class="string">"test"</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_string();
 
@@ -1319,17 +1329,17 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_not_eq() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Binary(BinaryExpression::new(
             PredicateOperator::NotEq,
             Reference::new(<span class="string">"a"</span>),
             Datum::float(<span class="number">0.9</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1343,17 +1353,17 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_eq() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Binary(BinaryExpression::new(
             PredicateOperator::Eq,
             Reference::new(<span class="string">"a"</span>),
             Datum::float(<span class="number">1.0</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1367,17 +1377,17 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_greater_than_or_eq() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Binary(BinaryExpression::new(
             PredicateOperator::GreaterThanOrEq,
             Reference::new(<span class="string">"a"</span>),
             Datum::float(<span class="number">1.0</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1391,17 +1401,17 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_greater_than() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Binary(BinaryExpression::new(
             PredicateOperator::GreaterThan,
             Reference::new(<span class="string">"a"</span>),
             Datum::float(<span class="number">0.9</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1415,17 +1425,17 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_less_than_or_eq() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Binary(BinaryExpression::new(
             PredicateOperator::LessThanOrEq,
             Reference::new(<span class="string">"a"</span>),
             Datum::float(<span class="number">1.0</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1439,17 +1449,17 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_less_than() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>predicate = Predicate::Binary(BinaryExpression::new(
             PredicateOperator::LessThan,
             Reference::new(<span class="string">"a"</span>),
             Datum::float(<span class="number">1.1</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1463,15 +1473,15 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_is_not_nan() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
         <span class="kw">let </span>predicate = Predicate::Unary(UnaryExpression::new(
             PredicateOperator::NotNan,
             Reference::new(<span class="string">"a"</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1485,15 +1495,15 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_is_nan() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
         <span class="kw">let </span>predicate = Predicate::Unary(UnaryExpression::new(
             PredicateOperator::IsNan,
             Reference::new(<span class="string">"a"</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1507,15 +1517,15 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_is_not_null() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
         <span class="kw">let </span>predicate = Predicate::Unary(UnaryExpression::new(
             PredicateOperator::NotNull,
             Reference::new(<span class="string">"a"</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1529,15 +1539,15 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_is_null() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
         <span class="kw">let </span>predicate = Predicate::Unary(UnaryExpression::new(
             PredicateOperator::IsNull,
             Reference::new(<span class="string">"a"</span>),
         ))
-        .bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        .bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1551,12 +1561,11 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_always_false() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
-        <span class="kw">let </span>predicate =
-            Predicate::AlwaysFalse.bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>predicate = Predicate::AlwaysFalse.bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
@@ -1570,12 +1579,11 @@
     <span class="attr">#[test]
     </span><span class="kw">fn </span>test_expr_always_true() -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
         <span class="kw">let </span>case_sensitive = <span class="bool-val">true</span>;
-        <span class="kw">let </span>partition_spec = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
-        <span class="kw">let </span>predicate =
-            Predicate::AlwaysTrue.bind(partition_spec.schema_ref().clone(), case_sensitive)<span class="question-mark">?</span>;
+        <span class="kw">let </span>(partition_spec, schema) = create_partition_spec(PrimitiveType::Float)<span class="question-mark">?</span>;
+        <span class="kw">let </span>predicate = Predicate::AlwaysTrue.bind(schema.clone(), case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>expression_evaluator =
-            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
+            create_expression_evaluator(partition_spec, <span class="kw-2">&amp;</span>schema, <span class="kw-2">&amp;</span>predicate, case_sensitive)<span class="question-mark">?</span>;
 
         <span class="kw">let </span>data_file = create_data_file_float();
 
