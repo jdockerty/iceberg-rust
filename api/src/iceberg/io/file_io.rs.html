@@ -516,7 +516,14 @@
 <a href="#515" id="515">515</a>
 <a href="#516" id="516">516</a>
 <a href="#517" id="517">517</a>
-<a href="#518" id="518">518</a></pre></div><pre class="rust"><code><span class="comment">// Licensed to the Apache Software Foundation (ASF) under one
+<a href="#518" id="518">518</a>
+<a href="#519" id="519">519</a>
+<a href="#520" id="520">520</a>
+<a href="#521" id="521">521</a>
+<a href="#522" id="522">522</a>
+<a href="#523" id="523">523</a>
+<a href="#524" id="524">524</a>
+<a href="#525" id="525">525</a></pre></div><pre class="rust"><code><span class="comment">// Licensed to the Apache Software Foundation (ASF) under one
 // or more contributor license agreements.  See the NOTICE file
 // distributed with this work for additional information
 // regarding copyright ownership.  The ASF licenses this file
@@ -784,7 +791,7 @@
 
     <span class="doccomment">/// Read and returns whole content of file.
     ///
-    /// For continues reading, use [`Self::reader`] instead.
+    /// For continuous reading, use [`Self::reader`] instead.
     </span><span class="kw">pub async fn </span>read(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">crate</span>::Result&lt;Bytes&gt; {
         <span class="prelude-val">Ok</span>(<span class="self">self
             </span>.op
@@ -793,7 +800,7 @@
             </span>.to_bytes())
     }
 
-    <span class="doccomment">/// Creates [`FileRead`] for continues reading.
+    <span class="doccomment">/// Creates [`FileRead`] for continuous reading.
     ///
     /// For one-time reading, use [`Self::read`] instead.
     </span><span class="kw">pub async fn </span>reader(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">crate</span>::Result&lt;<span class="kw">impl </span>FileRead&gt; {
@@ -849,8 +856,15 @@
     }
 
     <span class="doccomment">/// Checks if file exists.
-    </span><span class="kw">pub async fn </span>exists(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="kw">crate</span>::Result&lt;bool&gt; {
+    </span><span class="kw">pub async fn </span>exists(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;bool&gt; {
         <span class="prelude-val">Ok</span>(<span class="self">self</span>.op.exists(<span class="kw-2">&amp;</span><span class="self">self</span>.path[<span class="self">self</span>.relative_path_pos..]).<span class="kw">await</span><span class="question-mark">?</span>)
+    }
+
+    <span class="doccomment">/// Deletes file.
+    ///
+    /// If the file does not exist, it will not return error.
+    </span><span class="kw">pub async fn </span>delete(<span class="kw-2">&amp;</span><span class="self">self</span>) -&gt; <span class="prelude-ty">Result</span>&lt;()&gt; {
+        <span class="prelude-val">Ok</span>(<span class="self">self</span>.op.delete(<span class="kw-2">&amp;</span><span class="self">self</span>.path[<span class="self">self</span>.relative_path_pos..]).<span class="kw">await</span><span class="question-mark">?</span>)
     }
 
     <span class="doccomment">/// Converts into [`InputFile`].
@@ -867,14 +881,14 @@
     /// # Notes
     ///
     /// Calling `write` will overwrite the file if it exists.
-    /// For continues writing, use [`Self::writer`].
+    /// For continuous writing, use [`Self::writer`].
     </span><span class="kw">pub async fn </span>write(<span class="kw-2">&amp;</span><span class="self">self</span>, bs: Bytes) -&gt; <span class="kw">crate</span>::Result&lt;()&gt; {
         <span class="kw">let </span><span class="kw-2">mut </span>writer = <span class="self">self</span>.writer().<span class="kw">await</span><span class="question-mark">?</span>;
         writer.write(bs).<span class="kw">await</span><span class="question-mark">?</span>;
         writer.close().<span class="kw">await
     </span>}
 
-    <span class="doccomment">/// Creates output file for continues writing.
+    <span class="doccomment">/// Creates output file for continuous writing.
     ///
     /// # Notes
     ///
