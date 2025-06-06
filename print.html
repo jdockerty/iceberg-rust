@@ -247,8 +247,8 @@ iceberg-catalog-rest = &quot;0.2.0&quot;
 <h1 id="apache-iceberg-rust-downloads"><a class="header" href="#apache-iceberg-rust-downloads">Apache Iceberg™ Rust Downloads</a></h1>
 <p>The official Apache Iceberg-Rust releases are provided as source artifacts.</p>
 <h2 id="releases"><a class="header" href="#releases">Releases</a></h2>
-<p>The latest source release is <a href="https://www.apache.org/dyn/closer.lua/iceberg/apache-iceberg-rust-0.4.0/apache-iceberg-rust-0.4.0-src.tar.gz?action=download">0.4.0</a> (<a href="https://downloads.apache.org/iceberg/apache-iceberg-rust-0.4.0/apache-iceberg-rust-0.4.0-src.tar.gz.asc">asc</a>,
-<a href="https://downloads.apache.org/iceberg/apache-iceberg-rust-0.4.0/apache-iceberg-rust-0.4.0-src.tar.gz.sha512">sha512</a>).</p>
+<p>The latest source release is <a href="https://www.apache.org/dyn/closer.lua/iceberg/apache-iceberg-rust-0.5.1/apache-iceberg-rust-0.5.1-src.tar.gz?action=download">0.5.1</a> (<a href="https://downloads.apache.org/iceberg/apache-iceberg-rust-0.5.1/apache-iceberg-rust-0.5.1-src.tar.gz.asc">asc</a>,
+<a href="https://downloads.apache.org/iceberg/apache-iceberg-rust-0.5.1/apache-iceberg-rust-0.5.1-src.tar.gz.sha512">sha512</a>).</p>
 <p>For older releases, please check the <a href="https://archive.apache.org/dist/iceberg/">archive</a>.</p>
 <h2 id="notes"><a class="header" href="#notes">Notes</a></h2>
 <ul>
@@ -597,11 +597,13 @@ example of how to create a <code>RestCatalog</code>:</p>
     println!(&quot;Table {TABLE_NAME} created!&quot;);
 <span class="boring">
 </span><span class="boring">    // Ensure that the table is under the correct namespace.
-</span><span class="boring">    assert!(catalog
-</span><span class="boring">        .list_tables(&amp;namespace_ident)
-</span><span class="boring">        .await
-</span><span class="boring">        .unwrap()
-</span><span class="boring">        .contains(&amp;table_ident));
+</span><span class="boring">    assert!(
+</span><span class="boring">        catalog
+</span><span class="boring">            .list_tables(&amp;namespace_ident)
+</span><span class="boring">            .await
+</span><span class="boring">            .unwrap()
+</span><span class="boring">            .contains(&amp;table_ident)
+</span><span class="boring">    );
 </span><span class="boring">
 </span><span class="boring">    // Load the table back from the catalog. It should be identical to the created table.
 </span><span class="boring">    let loaded_table = catalog.load_table(&amp;table_ident).await.unwrap();
@@ -690,11 +692,13 @@ example of how to create a <code>RestCatalog</code>:</p>
 </span><span class="boring">    println!(&quot;Table {TABLE_NAME} created!&quot;);
 </span><span class="boring">
 </span>    // Ensure that the table is under the correct namespace.
-    assert!(catalog
-        .list_tables(&amp;namespace_ident)
-        .await
-        .unwrap()
-        .contains(&amp;table_ident));
+    assert!(
+        catalog
+            .list_tables(&amp;namespace_ident)
+            .await
+            .unwrap()
+            .contains(&amp;table_ident)
+    );
 
     // Load the table back from the catalog. It should be identical to the created table.
     let loaded_table = catalog.load_table(&amp;table_ident).await.unwrap();
